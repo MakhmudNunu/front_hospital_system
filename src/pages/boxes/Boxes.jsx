@@ -1,41 +1,59 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 function Boxes() {
-  // Пример данных (позже можно грузить с API)
-  const [boxes, setBoxes] = useState([
-    { id: 1, name: "Бокс 1", returnDate: "2024-07-01", barcodes: ["12345", "67890"], status: "created" },
-    { id: 2, name: "Бокс 2", returnDate: "2024-07-05", barcodes: ["11111", "22222", "33333"], status: "issued" },
-    { id: 3, name: "Бокс 3", returnDate: "2024-07-10", barcodes: [], status: "returned" },
-  ]);
-
+  const [boxes, setBoxes] = useState([]);
   const [openBoxId, setOpenBoxId] = useState(null);
-  const [activeTab, setActiveTab] = useState("created");
+  const [activeTab, setActiveTab] = useState("CREATED");
+  const [loading, setLoading] = useState(false);
+
+  const API_URL = process.env.REACT_APP_API_URL;
 
   const toggleBox = (id) => {
     setOpenBoxId(openBoxId === id ? null : id);
   };
 
-  const removeBarcode = (boxId, index) => {
-    setBoxes(
-      boxes.map((box) =>
+  const removeInstrument = (boxId, index) => {
+    setBoxes((prev) =>
+      prev.map((box) =>
         box.id === boxId
-          ? { ...box, barcodes: box.barcodes.filter((_, i) => i !== index) }
+          ? { ...box, instruments: box.instruments.filter((_, i) => i !== index) }
           : box
       )
     );
   };
 
-  // Фильтрация боксов по статусу
-  const filteredBoxes = boxes.filter((box) => box.status === activeTab);
+  useEffect(() => {
+    const fetchBoxes = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `${API_URL}/boxes/get-by-status?status=${activeTab}&page=0&size=10`
+        );
+        if (!res.ok) throw new Error("Ошибка при загрузке боксов");
+        const data = await res.json();
+
+        // теперь instruments уже внутри бокса
+        const rawBoxes = data.content || data;
+        setBoxes(rawBoxes);
+      } catch (err) {
+        console.error(err);
+        setBoxes([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBoxes();
+  }, [activeTab, API_URL]);
 
   return (
-    <div style={{ maxWidth: "600px", margin: "40px auto", fontFamily: "sans-serif" }}>
+    <div style={{ maxWidth: "800px", margin: "40px auto", fontFamily: "sans-serif" }}>
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}>Боксы</h1>
 
       {/* Табы */}
       <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "20px" }}>
-        {["created", "issued", "returned"].map((tab) => (
+        {["CREATED", "ISSUED", "RETURNED"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -48,17 +66,19 @@ function Boxes() {
               cursor: "pointer",
             }}
           >
-            {tab === "created" && "Созданные"}
-            {tab === "issued" && "Выданные"}
-            {tab === "returned" && "Возвращённые"}
+            {tab === "CREATED" && "Созданные"}
+            {tab === "ISSUED" && "Выданные"}
+            {tab === "RETURNED" && "Возвращённые"}
           </button>
         ))}
       </div>
 
-      {/* Список боксов */}
-      {filteredBoxes.length > 0 ? (
+      {/* Список */}
+      {loading ? (
+        <p style={{ textAlign: "center" }}>Загрузка...</p>
+      ) : boxes.length > 0 ? (
         <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: "15px" }}>
-          {filteredBoxes.map((box) => (
+          {boxes.map((box) => (
             <li
               key={box.id}
               style={{
@@ -74,50 +94,65 @@ function Boxes() {
                 style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 onClick={() => toggleBox(box.id)}
               >
-                <span style={{ fontWeight: "bold" }}>{box.name}</span>
+                <div>
+                  <div style={{ fontWeight: "bold" }}>{box.name}</div>
+                  <div style={{ fontSize: "12px", color: "#555" }}>
+                    Доктор: {box.doctorName}
+                  </div>
+                </div>
                 <span style={{ fontStyle: "italic", color: "#555" }}>
-                  Дата возврата: {box.returnDate}
+                  Дата возврата: {box.return_by}
                 </span>
               </div>
-
               {openBoxId === box.id && (
                 <div style={{ marginTop: "10px" }}>
-                  {box.barcodes.length > 0 ? (
-                    <ul style={{ listStyle: "none", padding: 0 }}>
-                      {box.barcodes.map((code, index) => (
-                        <li
-                          key={index}
+                  {box.instruments?.length > 0 ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "10px",
+                        marginTop: "10px",
+                      }}
+                    >
+                      {box.instruments.map((instrument, index) => (
+                        <div
+                          key={instrument.id}
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
+                            flex: "0 1 calc(33.333% - 10px)",
                             border: "1px solid #ddd",
-                            padding: "5px 10px",
-                            borderRadius: "5px",
-                            marginBottom: "5px",
+                            borderRadius: "8px",
+                            padding: "10px",
                             background: "#fff",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
                           }}
                         >
-                          <span>{code}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeBarcode(box.id, index)}
-                            style={{
-                              background: "red",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "5px",
-                              padding: "4px 8px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            ×
-                          </button>
-                        </li>
+                          <div>
+                            <div><b>{instrument.name}</b> ({instrument.barcode})</div>
+                            <div style={{ fontSize: "12px", color: "#555" }}>
+                              Серийный: {instrument.serialNumber} | Страна: {instrument.country}
+                            </div>
+                            {instrument.images?.[0]?.url && (
+                              <img
+                                src={instrument.images[0].url}
+                                alt={instrument.images[0].originalName}
+                                style={{
+                                  width: "100%",
+                                  maxHeight: "120px",
+                                  objectFit: "cover",
+                                  marginTop: "5px",
+                                  borderRadius: "5px",
+                                }}
+                              />
+                            )}
+                          </div>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   ) : (
-                    <p style={{ color: "#777", fontStyle: "italic" }}>Штрих-коды отсутствуют</p>
+                    <p style={{ color: "#777", fontStyle: "italic" }}>Инструментов нет</p>
                   )}
                 </div>
               )}
@@ -130,7 +165,8 @@ function Boxes() {
         </p>
       )}
 
-      <Link to="/Boxes/CreateBox"
+      <Link
+        to="/Boxes/CreateBox"
         style={{
           display: "block",
           marginTop: "20px",
@@ -141,7 +177,8 @@ function Boxes() {
           border: "none",
           borderRadius: "5px",
           cursor: "pointer",
-        }}>
+        }}
+      >
         Создать бокс
       </Link>
     </div>
