@@ -13,16 +13,6 @@ function Boxes() {
     setOpenBoxId(openBoxId === id ? null : id);
   };
 
-  const removeInstrument = (boxId, index) => {
-    setBoxes((prev) =>
-      prev.map((box) =>
-        box.id === boxId
-          ? { ...box, instruments: box.instruments.filter((_, i) => i !== index) }
-          : box
-      )
-    );
-  };
-
   useEffect(() => {
     const fetchBoxes = async () => {
       setLoading(true);
@@ -32,8 +22,6 @@ function Boxes() {
         );
         if (!res.ok) throw new Error("Ошибка при загрузке боксов");
         const data = await res.json();
-
-        // теперь instruments уже внутри бокса
         const rawBoxes = data.content || data;
         setBoxes(rawBoxes);
       } catch (err) {
@@ -43,15 +31,12 @@ function Boxes() {
         setLoading(false);
       }
     };
-
     fetchBoxes();
   }, [activeTab, API_URL]);
 
   return (
     <div style={{ maxWidth: "800px", margin: "40px auto", fontFamily: "sans-serif" }}>
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}>Боксы</h1>
-
-      {/* Табы */}
       <div style={{ display: "flex", justifyContent: "center", gap: "10px", marginBottom: "20px" }}>
         {["CREATED", "ISSUED", "RETURNED"].map((tab) => (
           <button
@@ -72,8 +57,6 @@ function Boxes() {
           </button>
         ))}
       </div>
-
-      {/* Список */}
       {loading ? (
         <p style={{ textAlign: "center" }}>Загрузка...</p>
       ) : boxes.length > 0 ? (
@@ -164,7 +147,6 @@ function Boxes() {
           Нет боксов в этом статусе.
         </p>
       )}
-
       <Link
         to="/Boxes/CreateBox"
         style={{
