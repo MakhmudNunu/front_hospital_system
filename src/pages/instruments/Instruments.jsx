@@ -2,14 +2,14 @@ import { useState } from "react";
 
 export default function ToolPage() {
   const [name, setName] = useState("");
-  const [quantity, setQuantity] = useState("");
+  const [quantity, setQuantity] = useState("1");
   const [productionDate, setProductionDate] = useState("");
   const [acceptanceDate, setAcceptanceDate] = useState("");
   const [productionCompany, setProductionCompany] = useState("");
   const [country, setCountry] = useState("");
   const [composition, setComposition] = useState("");
-  const [reusable, setReusable] = useState(false);
-  const [usageCount, setUsageCount] = useState("");
+  const [reusable, setReusable] = useState(true);
+  const [usageCount, setUsageCount] = useState("0");
   const [photos, setPhotos] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [zipUrl, setZipUrl] = useState(null);
