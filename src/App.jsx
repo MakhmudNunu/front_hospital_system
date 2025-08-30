@@ -33,7 +33,7 @@ function App() {
                   textDecoration: "none",
                 })}
               >
-                Боксы
+                Биксы
               </NavLink>
             </li>
           </ul>

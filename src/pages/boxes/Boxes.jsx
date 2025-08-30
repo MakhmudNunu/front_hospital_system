@@ -39,7 +39,8 @@ function Boxes() {
   const [boxBarcode, setBoxBarcode] = useState("");
   const [instrumentInput, setInstrumentInput] = useState("");
   const [scannedInstruments, setScannedInstruments] = useState([]);
-  const [checkResult, setCheckResult] = useState(null);
+  const [checkResult, setCheckResult] = useState({ found: [], notFound: [], error: null });
+
 
   const API_URL = process.env.REACT_APP_API_URL;
 
@@ -50,7 +51,7 @@ function Boxes() {
       setLoading(true);
       try {
         const res = await fetch(`${API_URL}/boxes/get-by-status?status=${status}&page=0&size=10`);
-        if (!res.ok) throw new Error("Ошибка при загрузке боксов");
+        if (!res.ok) throw new Error("Ошибка при загрузке биксов");
         const data = await res.json();
         setBoxes(data.content || data);
       } catch (err) {
@@ -91,7 +92,7 @@ function Boxes() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ barcode, boxStatus: "ISSUED", instrumentBarcodes: [] }),
       });
-      if (!res.ok) throw new Error("Ошибка при выдаче бокса");
+      if (!res.ok) throw new Error("Ошибка при выдаче бикса");
       fetchBoxes(activeTab);
     } catch (err) {
       console.error(err);
@@ -109,7 +110,7 @@ function Boxes() {
           instrumentBarcodes: scannedInstruments.map((i) => i.barcode),
         }),
       });
-      if (!res.ok) throw new Error("Ошибка при возврате бокса");
+      if (!res.ok) throw new Error("Ошибка при возврате бикса");
       fetchBoxes(activeTab);
     } catch (err) {
       console.error(err);
@@ -117,38 +118,96 @@ function Boxes() {
   };
 
   const handleCheckInstruments = async () => {
-    try {
-      const res = await fetch(`${API_URL}/boxes/check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          boxBarcode,
-          instrumentBarcodes: scannedInstruments.map((i) => i.barcode),
-        }),
-      });
-      if (!res.ok) throw new Error("Ошибка при проверке инструментов");
-      const data = await res.json();
+    const box = boxes.find((b) => b.barcode === boxBarcode);
 
-      const found = await Promise.all(data.foundBarcodes.map(fetchInstrument));
-      const notFound = await Promise.all(data.notFoundBarcodes.map(fetchInstrument));
-      setCheckResult({ found, notFound });
-    } catch (err) {
-      console.error(err);
+    if (!box) {
+      setCheckResult({ found: [], notFound: [], error: "бикс с таким barcode не найден." });
+      return;
     }
+
+    const scannedBarcodes = scannedInstruments.map((i) => i.barcode);
+
+    const found = scannedInstruments.filter((i) => i.status === "found");
+
+    const notFound = (box.instruments || [])
+      .filter((i) => !scannedBarcodes.includes(i.barcode))
+      .map((i) => ({
+        barcode: i.barcode,
+        name: i.name,
+        image: i.images?.[0]?.url || null,
+      }));
+
+    setCheckResult({ found, notFound, error: null });
   };
+
+
+
 
   useEffect(() => {
     fetchBoxes("CREATED");
   }, [fetchBoxes]);
 
-  const handleAddInstrument = async (barcode) => {
-    const instrument = await fetchInstrument(barcode);
-    setScannedInstruments((prev) => [...prev, instrument]);
+
+  const handleAddInstrument = async (rawBarcode) => {
+    const barcode = rawBarcode.trim().toUpperCase();
+
+    if (!barcode) return;
+
+    const box = boxes.find((b) => b.barcode === boxBarcode);
+
+    if (!box) {
+      setCheckResult({ error: "бикс с таким barcode не найден." });
+      return;
+    }
+
+    const alreadyScanned = scannedInstruments.some((inst) => inst.barcode === barcode);
+    if (alreadyScanned) {
+      setCheckResult({ error: `Инструмент ${barcode} уже добавлен.` });
+      return;
+    }
+
+    const existsInBox = box.instruments?.some((inst) => inst.barcode === barcode);
+
+    if (existsInBox) {
+      const instrument = await fetchInstrument(barcode);
+      setScannedInstruments((prev) => [...prev, { ...instrument, status: "found" }]);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/instruments/${barcode}`);
+      if (res.ok) {
+        const data = await res.json();
+        setScannedInstruments((prev) => [
+          ...prev,
+          {
+            barcode,
+            name: data.name || "Инструмент",
+            image: data.images?.[0]?.url || null,
+            status: "extra",
+          },
+        ]);
+      } else {
+        setScannedInstruments((prev) => [
+          ...prev,
+          { barcode, name: "Неизвестный инструмент", image: null, status: "lost" },
+        ]);
+      }
+    } catch (err) {
+      console.error(err);
+      setScannedInstruments((prev) => [
+        ...prev,
+        { barcode, name: "Ошибка загрузки", image: null, status: "lost" },
+      ]);
+    }
   };
+
+
+
 
   return (
     <div style={{ maxWidth: "800px", margin: "40px auto", fontFamily: "sans-serif" }}>
-      <h1 style={{ textAlign: "center", marginBottom: "20px" }}>Боксы</h1>
+      <h1 style={{ textAlign: "center", marginBottom: "20px" }}>Биксы</h1>
 
       <Tabs activeTab={activeTab} onTabChange={handleTabChange} />
 
@@ -203,7 +262,7 @@ function Boxes() {
           ))}
         </ul>
       ) : (
-        <p style={{ textAlign: "center", color: "#777", marginTop: "20px" }}>Нет боксов в этом статусе.</p>
+        <p style={{ textAlign: "center", color: "#777", marginTop: "20px" }}>Нет биксов в этом статусе.</p>
       )}
 
       <Link
@@ -220,13 +279,13 @@ function Boxes() {
           textDecoration: "none",
         }}
       >
-        Создать бокс
+        Создать бикс
       </Link>
 
       {showBoxModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
           <div style={{ background: "#fff", padding: "20px", borderRadius: "6px", minWidth: "300px" }}>
-            <h3>{activeTab === "CREATED" ? "Введите barcode бокса" : "Возврат бокса"}</h3>
+            <h3>{activeTab === "CREATED" ? "Введите barcode бикса" : "Возврат бикса"}</h3>
 
             <input
               type="text"
@@ -246,22 +305,55 @@ function Boxes() {
                   style={{ width: "100%", padding: "6px", marginTop: "10px", borderRadius: "4px", border: "1px solid #ccc" }}
                   onKeyDown={async (e) => {
                     if (e.key === "Enter" && instrumentInput.trim()) {
-                      await handleAddInstrument(instrumentInput.trim());
+                      await handleAddInstrument(instrumentInput);
                       setInstrumentInput("");
                     }
                   }}
+
                 />
 
                 <div style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                  {scannedInstruments.map((inst) => (
-                    <div key={inst.barcode} style={{ display: "flex", alignItems: "center", gap: "6px", borderBottom: "1px solid #eee", padding: "2px 0" }}>
-                      {inst.image && <img src={inst.image} alt={inst.name} style={{ width: "30px", height: "30px", objectFit: "cover", borderRadius: "4px" }} />}
-                      <span style={{ fontSize: "13px" }}>
-                        <b>{inst.name}</b> <span style={{ color: "#555" }}>({inst.barcode})</span>
-                      </span>
-                    </div>
-                  ))}
+                  {scannedInstruments.map((inst) => {
+                    let color = "inherit";
+                    if (inst.status === "found") color = "green";
+                    if (inst.status === "extra") color = "orange";
+                    if (inst.status === "lost") color = "red";
+
+                    return (
+                      <div
+                        key={inst.barcode}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          borderBottom: "1px solid #eee",
+                          padding: "2px 0",
+                          color,
+                        }}
+                      >
+                        {inst.image && (
+                          <img
+                            src={inst.image}
+                            alt={inst.name}
+                            style={{
+                              width: "30px",
+                              height: "30px",
+                              objectFit: "cover",
+                              borderRadius: "4px",
+                            }}
+                          />
+                        )}
+                        <span style={{ fontSize: "13px" }}>
+                          <b>{inst.name}</b> <span>({inst.barcode})</span>{" "}
+                          {inst.status === "found" && <span>(В биксе)</span>}
+                          {inst.status === "extra" && <span>(Не было в биксе)</span>}
+                          {inst.status === "lost" && <span>(Не найден)</span>}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
+
 
                 <button
                   onClick={handleCheckInstruments}
@@ -272,13 +364,16 @@ function Boxes() {
 
                 {checkResult && (
                   <div style={{ marginTop: "12px", fontSize: "13px" }}>
-                    {checkResult.found.map((i) => (
+                    {checkResult.error && <div style={{ color: "red" }}>{checkResult.error}</div>}
+
+                    {checkResult.found?.map((i) => (
                       <div key={`found-${i.barcode}`} style={{ color: "green", display: "flex", alignItems: "center", gap: "4px", padding: "2px 0" }}>
                         {i.image && <img src={i.image} alt={i.name} style={{ width: "20px", height: "20px", objectFit: "cover", borderRadius: "3px" }} />}
                         {i.name} ({i.barcode}) — На месте
                       </div>
                     ))}
-                    {checkResult.notFound.map((i) => (
+
+                    {checkResult.notFound?.map((i) => (
                       <div key={`lost-${i.barcode}`} style={{ color: "red", display: "flex", alignItems: "center", gap: "4px", padding: "2px 0" }}>
                         {i.image && <img src={i.image} alt={i.name} style={{ width: "20px", height: "20px", objectFit: "cover", borderRadius: "3px" }} />}
                         {i.name} ({i.barcode}) — Потерян
@@ -286,6 +381,7 @@ function Boxes() {
                     ))}
                   </div>
                 )}
+
               </>
             )}
 

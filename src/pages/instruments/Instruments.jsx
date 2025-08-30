@@ -48,6 +48,13 @@ export default function ToolPage() {
     formData.append("quantity", quantity === "" ? "0" : quantity.toString());
     photos.forEach(f => formData.append("images", f));
 
+    if (photos.length === 0) {
+      alert("Пожалуйста, добавьте хотя бы одну фотографию инструмента.");
+      setLoading(false);
+      return;
+    }
+
+
     try {
       const res = await fetch(`${API_URL}/instruments/create`, { method: "POST", body: formData });
       if (!res.ok) throw new Error("Ошибка сервера");
@@ -69,36 +76,36 @@ export default function ToolPage() {
         style={{ display: "flex", flexDirection: "column", gap: "15px", border: "1px solid #ccc", padding: "20px", borderRadius: "8px" }}
       >
         <label>Название:
-          <input type="text" value={name} onChange={e => setName(e.target.value)} required style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
+          <input required placeholder="Скальпель" type="text" value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
         </label>
         <label>Дата производства:
-          <input type="date" value={productionDate} onChange={e => setProductionDate(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
+          <input required type="date" value={productionDate} onChange={e => setProductionDate(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
         </label>
         <label>Дата приёмки:
-          <input type="date" value={acceptanceDate} onChange={e => setAcceptanceDate(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
+          <input required type="date" value={acceptanceDate} onChange={e => setAcceptanceDate(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
         </label>
         <label>Компания-производитель:
-          <input type="text" value={productionCompany} onChange={e => setProductionCompany(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
+          <input required placeholder="MedCorp" type="text" value={productionCompany} onChange={e => setProductionCompany(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
         </label>
         <label>Страна:
-          <input type="text" value={country} onChange={e => setCountry(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
+          <input required placeholder="Кыргызстан" type="text" value={country} onChange={e => setCountry(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
         </label>
         <label>Состав:
-          <input type="text" value={composition} onChange={e => setComposition(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
+          <input required placeholder="Хирургическая сталь" type="text" value={composition} onChange={e => setComposition(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
         </label>
         <label>Многоразовый:
-          <input type="checkbox" checked={reusable} onChange={e => setReusable(e.target.checked)} style={{ marginLeft: "10px" }} />
+          <input required type="checkbox" checked={reusable} onChange={e => setReusable(e.target.checked)} style={{ marginLeft: "10px" }} />
         </label>
         {reusable && (
           <label>Количество использований:
-            <input type="number" value={usageCount} onChange={e => setUsageCount(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
+            <input required type="number" value={usageCount} onChange={e => setUsageCount(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
           </label>
         )}
         <label>Количество экземпляров:
-          <input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
+          <input required type="number" value={quantity} onChange={e => setQuantity(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "5px" }} />
         </label>
         <label>Фотографии:
-          <input type="file" multiple onChange={handlePhotoChange} style={{ display: "block", marginTop: "5px" }} />
+          <input type="file" multiple onChange={handlePhotoChange} style={{ display: "block", marginTop: "5px", color: 'transparent' }} />
         </label>
         {photoPreviews.length > 0 && (
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "10px" }}>
